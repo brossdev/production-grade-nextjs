@@ -67,7 +67,7 @@ export function getStaticPaths() {
     }
 }
 
-export async function getStaticProps({params}) {
+export async function getStaticProps({params, preview}) {
     let post
 
     try {
@@ -78,7 +78,7 @@ export async function getStaticProps({params}) {
 
 
     } catch(e) {
-        const cmsPosts = posts.published.map( p => {
+        const cmsPosts = (preview ? posts.draft : posts.published).map( p => {
             return  matter(p)
             
         } ) 
