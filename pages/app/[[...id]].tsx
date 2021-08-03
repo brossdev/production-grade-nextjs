@@ -9,6 +9,10 @@ import FolderPane from '../../components/folderPane'
 import DocPane from '../../components/docPane'
 import NewFolderDialog from '../../components/newFolderDialog'
 import { getSession , useSession } from 'next-auth/client'
+import {folder, doc, connectToDB } from '../../db'
+import {UserSession} from '../../types'
+
+
 
 const App: FC<{ folders?: any[]; activeFolder?: any; activeDoc?: any; activeDocs?: any[] }> = ({
   folders,
@@ -80,10 +84,29 @@ App.defaultProps = {
 
 
 export async function getServerSideProps(ctx) {
-    const session = await getSession(ctx)
+    
+    const session: { user: UserSession } = await getSession(ctx)
+
+    if (!session || !session.user) {
+        return {
+            props: { session }
+        }
+    }
+    const props: any = { session }    
+    const { db} = await connectToDB()
+    props.folders = await folder.getFolders(db, session.user.id)
+    if (ctx.params.id) {
+    props.activeFolder = props.folders.find(f => f._id === ctx.params.id[0])
+props.activeDocs = await doc.getDocsByFolder(db, props.activeFolder._id)
+const activeDocId = ctx.params.id[1]
+
+if ( activeDocId ) {
+    props.activeDoc = await doc.getOneDoc(db, activeDocId)
+}
+    }
 
     return {
-        props: {session},
+        props
     }
 }
 /**
