@@ -8,11 +8,9 @@ import User from '../../components/user'
 import FolderPane from '../../components/folderPane'
 import DocPane from '../../components/docPane'
 import NewFolderDialog from '../../components/newFolderDialog'
-import { getSession , useSession } from 'next-auth/client'
-import {folder, doc, connectToDB } from '../../db'
-import {UserSession} from '../../types'
-
-
+import { getSession, useSession } from 'next-auth/client'
+import { folder, doc, connectToDB } from '../../db'
+import { UserSession } from '../../types'
 
 const App: FC<{ folders?: any[]; activeFolder?: any; activeDoc?: any; activeDocs?: any[] }> = ({
   folders,
@@ -20,14 +18,13 @@ const App: FC<{ folders?: any[]; activeFolder?: any; activeDoc?: any; activeDocs
   activeFolder,
   activeDocs,
 }) => {
-    const router = useRouter()
-    const [session, loading] = useSession()
+  const router = useRouter()
+  const [session, loading] = useSession()
   const [newFolderIsShown, setIsShown] = useState(false)
-    
-    if (loading) {
-        return null
-   
-   }
+
+  if (loading) {
+    return null
+  }
   const Page = () => {
     if (activeDoc) {
       return <DocPane folder={activeFolder} doc={activeDoc} />
@@ -66,7 +63,7 @@ const App: FC<{ folders?: any[]; activeFolder?: any; activeDoc?: any; activeDocs
           <NewFolderButton onClick={() => setIsShown(true)} />
         </Pane>
         <Pane>
-      <FolderList folders={[{ _id: 1, name: 'hello' }]} />{' '}
+          <FolderList folders={folders} />{' '}
         </Pane>
       </Pane>
       <Pane marginLeft={300} width="calc(100vw - 300px)" height="100vh" overflowY="auto" position="relative">
@@ -82,32 +79,34 @@ App.defaultProps = {
   folders: [],
 }
 
+export async function getServerSideProps(context) {
+  const session: { user: UserSession } = await getSession(context)
+  // not signed in
+  if (!session || !session.user) {
+    return { props: {} }
+  }
 
-export async function getServerSideProps(ctx) {
-    
-    const session: { user: UserSession } = await getSession(ctx)
+  const props: any = { session }
+  const { db } = await connectToDB()
+  const folders = await folder.getFolders(db, session.user.id)
+  props.folders = folders
 
-    if (!session || !session.user) {
-        return {
-            props: { session }
-        }
+  if (context.params.id) {
+    const activeFolder = folders.find((f) => f._id === context.params.id[0])
+    const activeDocs = await doc.getDocsByFolder(db, activeFolder._id)
+    props.activeFolder = activeFolder
+    props.activeDocs = activeDocs
+
+    const activeDocId = context.params.id[1]
+
+    if (activeDocId) {
+      props.activeDoc = await doc.getOneDoc(db, activeDocId)
     }
-    const props: any = { session }    
-    const { db} = await connectToDB()
-    props.folders = await folder.getFolders(db, session.user.id)
-    if (ctx.params.id) {
-    props.activeFolder = props.folders.find(f => f._id === ctx.params.id[0])
-props.activeDocs = await doc.getDocsByFolder(db, props.activeFolder._id)
-const activeDocId = ctx.params.id[1]
+  }
 
-if ( activeDocId ) {
-    props.activeDoc = await doc.getOneDoc(db, activeDocId)
-}
-    }
-
-    return {
-        props
-    }
+  return {
+    props,
+  }
 }
 /**
  * Catch all handler. Must handle all different page
