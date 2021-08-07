@@ -22,18 +22,21 @@ export default (req, res) =>
     },
     callbacks: {
       async session(session, user) {
-        session.user.id = user.id
+        if (user) {
+          session.user.id = user.id
+        }
         return session
       },
       async jwt(tokenPayload, user, account, profile, isNewUser) {
         const { db } = await connectToDB()
 
         if (isNewUser) {
-          const personalFolder = await folder.createFolder(db, { createdBy: `${user.id}`, name: 'Getting Started' })
+          const newFolder = await folder.createFolder(db, { createdBy: user._id, name: 'Getting Started' })
+
           await doc.createDoc(db, {
+            createdBy: user._id,
+            folder: newFolder._id,
             name: 'Start Here',
-            folder: personalFolder._id,
-            createdBy: `${user.id}`,
             content: {
               time: 1556098174501,
               blocks: [
